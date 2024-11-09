@@ -1,0 +1,88 @@
+---
+title: "rapport_svm_breast_cancer"
+author: "Bidar Anas"
+date: "2024-01-26"
+output: word_document
+---
+
+1. Installation et chargement de la bibliothèque e1071 
+
+```{r echo=TRUE}
+#install.packages("e1071")
+library(e1071)
+rm(list = ls(all.names = TRUE))
+
+
+```
+
+
+2. Chargement des données.
+
+```{r echo=TRUE}
+setwd("C:/Users/LENOVO/Desktop/m1s1_ai/Science des Données/mini-projet")
+breast_cancer_data <- read.csv("data/breast_cancer.csv", sep=";")
+summary(breast_cancer_data)
+
+```
+
+
+3. Comptage des occurrences de chaque niveau dans la variable pam50.
+
+```{r echo=TRUE}
+pam50_counts <- table(breast_cancer_data$pam50)
+print(pam50_counts)
+
+```
+
+4. Conversion de la variable pam50 en facteur.
+```{r echo=TRUE}
+breast_cancer_data$pam50 <- as.factor(breast_cancer_data$pam50)
+
+```
+
+5. Division des données en ensembles d'entraînement et de test.
+
+```{r echo=TRUE}
+split_index <- sample(1:nrow(breast_cancer_data), 0.7 * nrow(breast_cancer_data))
+train_data <- breast_cancer_data[,-c(1)]
+test_data <- train_data[-split_index,]
+train_data <- train_data[split_index,]
+
+```
+
+Il divise les données en un ensemble d'entraînement (70% des données) et un ensemble de test (30% des données) en utilisant un index aléatoire.
+
+
+6. Construction du modèle SVM.
+
+```{r echo=TRUE}
+svm_model <- svm(pam50 ~ ., data = train_data, kernel = "radial")
+
+```
+
+7. Prédictions sur les données de test .
+
+```{r echo=TRUE}
+predictions <- predict(svm_model, newdata = test_data)
+
+```
+
+
+8. Évaluation du modèle.
+
+```{r echo=TRUE}
+confusion_matrix <- table(predictions, test_data$pam50)
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+
+```
+
+9. Affichage de la matrice de confusion et de la précision.
+
+```{r echo=TRUE}
+print("Matrice de Confusion:")
+print(confusion_matrix)
+print(paste("Précision:", accuracy))
+
+```
+
+ La précision du modèle sur l'ensemble de test s'est révélée être significativement élevée, atteignant une valeur de 94.1%. Cette précision indique que le modèle a réussi avec succès à prédire correctement près de 94% des échantillons de l'ensemblede test.

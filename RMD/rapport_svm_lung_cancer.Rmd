@@ -1,0 +1,103 @@
+---
+title: "rapport_svm_lung_cancer"
+author: "Bidar Anas"
+date: "2024-01-26"
+output: word_document
+---
+
+1. Installation et chargement de la bibliothèque e1071 
+
+```{r echo=TRUE}
+#install.packages("e1071")
+library(e1071)
+rm(list = ls(all.names = TRUE))
+
+
+```
+
+
+2. Chargement des données.
+
+```{r echo=TRUE}
+setwd("C:/Users/LENOVO/Desktop/m1s1_ai/Science des Données/mini-projet")
+lung_cancer_data <- read.csv("data/lung_cancer.csv", sep=";")
+summary(lung_cancer_data)
+
+```
+
+3. Comptage des occurrences de  class,tissue_status et source .
+
+```{r echo=TRUE}
+class_counts <- table(lung_cancer_data$class)
+print("class")
+print(class_counts)
+
+tissue_status_counts <- table(lung_cancer_data$tissue_status)
+print("tissue_status")
+print(tissue_status_counts)
+
+source_counts <- table(lung_cancer_data$source)
+print("source")
+print(source_counts)
+
+```
+
+4. Conversion de la variable class en facteur.
+```{r echo=TRUE}
+
+lung_cancer_data$class <- as.factor(lung_cancer_data$class)
+lung_cancer_data$tissue_status <- as.factor(lung_cancer_data$tissue_status)
+lung_cancer_data$source <- as.factor(lung_cancer_data$source)
+
+
+```
+
+5. Division des données en ensembles d'entraînement et de test.
+
+```{r echo=TRUE}
+split_index <- sample(1:nrow(lung_cancer_data), 0.7 * nrow(lung_cancer_data))
+train_data <- lung_cancer_data[,-c(1)]
+test_data <- train_data[-split_index,]
+train_data <- train_data[split_index,]
+
+```
+
+Il divise les données en un ensemble d'entraînement (70% des données) et un ensemble de test (30% des données) en utilisant un index aléatoire.
+
+
+6. Construction du modèle SVM.
+
+```{r echo=TRUE}
+svm_model <- svm(class ~ ., data = train_data, kernel = "radial")
+
+```
+
+
+7. Prédictions sur les données de test .
+
+```{r echo=TRUE}
+predictions <- predict(svm_model, newdata = test_data)
+
+```
+
+8. Évaluation du modèle.
+
+```{r echo=TRUE}
+
+
+confusion <- table(predictions, test_data$class)
+res <- sum(diag(confusion)) / sum(confusion)
+
+```
+
+9. Affichage de la matrice de confusion et de la précision.
+
+```{r echo=TRUE}
+print("Matrice de Confusion:")
+print(confusion)
+print(paste("Précision:", res))
+
+```
+
+
+Une précision de 1.0  100%) signifie que toutes les prédictions effectuées par le modèle SVM sur l'ensemble de test sont correctes. C'est un résultat optimal et souhaitable, indiquant que le modèle a bien généralisé sur les données de test.

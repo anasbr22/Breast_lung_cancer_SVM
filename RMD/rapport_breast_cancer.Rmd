@@ -1,0 +1,284 @@
+---
+title: "rapport_breast_canser"
+author: "Bidar Anas"
+date: "2024-01-26"
+output: word_document
+---
+
+
+1. Importer les données.
+
+
+ Les données sont disponibles dans le fichier breast_cancer.csv dans le répertoire data. L’import
+de données se fait avec la commande read_csv,dim(data) contient les dimensions de la matrice de données.
+
+Veuillez modifier le chemin dans la fonction 'setwd()' pour refléter l'emplacement correct de votre répertoire de travail.
+
+```{r echo=TRUE}
+setwd("C:/Users/LENOVO/Desktop/m1s1_ai/Science des Données/mini-projet")
+data <- read.csv("data/breast_cancer.csv",sep=";")
+row.names(data) <- data$id_sample
+print(paste('data', dim(data)))
+
+```
+Le dataframe data contient 1016 lignes et 51 colonnes.
+
+
+```{r echo=TRUE}
+library(dplyr)
+head(data)
+```
+
+head() permet d’afficher les 5 premières lignes du dataframe.
+
+La dernière colonne nommée pam50 contient le soustype moléculaire du cancer du sein, mesuré pour chaque échantillon. Quatre sous-types moléculaires sont disponibles : luminal-A, luminal-B, HER2-enriched et basal-like.
+
+On peut afficher le nombre d’échantillons dans chaque sous-type moléculaire en utilisant data$pam50.
+```{r echo=TRUE}
+summary(data)
+table(data$pam50)
+```
+```{r echo=TRUE, fig.width=9}
+result_diff <- as.data.frame(table(data$pam50))
+
+X <- data[, sapply(data, is.numeric)]
+print(paste("X", dim(X)[1], dim(X)[2]))
+y <- data$pam50
+
+cnt <- table(data$pam50)
+barplot(cnt, main = "pam50", xlab = "Categories", ylab = "Count", col = "skyblue")
+```
+
+On peut remarquer que les données ne sont pas distribuées de la façon homogène selon le type de
+cancer. En effet, le cancer du sein de type luminal-A survient plus fréquemment dans la population
+générale par rapport aux autres sous-types moléculaires de ce cancer.
+
+2. Séparer les données d’expression et les étiquettes.
+
+on nommera X la matrice de données d’expression et y les étiquettes correspondantes.
+
+```{r echo=TRUE}
+y_levels <- levels(y)
+sort_by_mean <- sort(colMeans(X), decreasing = FALSE)
+X_sorted <- X[, names(sort_by_mean)]
+```
+
+3. Afficher les valeurs d’expression.
+
+```{r echo=TRUE, fig.width=9}
+boxplot(X_sorted, main = "Boxplot of Gene Expression Grouped by Label", col = "skyblue",
+        las = 2, notch = TRUE, outline = FALSE)
+```
+
+Les plages de valeurs sont différentes d’un gène à l’autre. Cette situation peut impacter fortement l’analyse en composantes principales (ACP) qui est principalement basée sur la variance. Les gènes avec une forte variance absolue auront plus de poids dans l’analyse que ceux avec une faible variance. Pour cette raison, les données doivent être obligatoirement normalisées (standardisées) avant l’analyse.
+
+4. Appliquer une normalisation centrée-réduite aux données.
+
+```{r echo=TRUE}
+scaled_X <- scale(X)
+scaled_X <- as.data.frame(scaled_X)
+head(scaled_X)
+```
+
+Les valeurs d’expression sont ramenées à la même échelle après une normalisation centrée-réduite.
+La moyenne d’expression de chaque gène est égale à 0 et l’écart type est égal à 1.
+
+```{r fig.width=9}
+boxplot(scaled_X, main = "Boxplot of Scaled Gene Expression", col = "skyblue",
+        las = 2, notch = TRUE, outline = FALSE)
+```
+
+5. Faire une analyse en composantes principales (ACP).
+
+ 5.1 Calcul de l’ACP.
+  
+ Pour calculer une ACP, on utilise les données standardisées scaled_X
+
+```{r echo=TRUE}
+pca_res <- prcomp(scaled_X)
+
+
+X_pca <- as.data.frame(pca_res$x)
+
+```
+
+convertir le résultat de l’ACP X_pca en dataframe pandas, en précisant
+les noms de colonnes : de PC1 à PC50.
+
+```{r echo=TRUE}
+summary(pca_res)
+
+pca_columns <- paste0("PC", 1:ncol(X_pca))
+
+
+X_pca <- as.data.frame(X_pca)
+colnames(X_pca) <- pca_columns
+
+
+head(X_pca)
+```
+
+  5.2 Calcul de la variance expliquée.
+  
+```{r echo=TRUE}
+explained_variance_ratio <- (pca_res$sdev^2) / sum(pca_res$sdev^2)
+
+print(explained_variance_ratio)
+```
+  
+  On peut les convertir en objet Series de pandas et présenter les valeurs en pourcentage.
+  
+```{r echo=TRUE}
+explained_variance <- data.frame(
+  Principal_Component = pca_columns,
+  Explained_Variance = 100 * explained_variance_ratio
+)
+
+print(head(explained_variance))
+```
+```{r echo=TRUE, fig.width=9}
+barplot(explained_variance$Explained_Variance, 
+        names.arg = explained_variance$Principal_Component,
+        main = "Explained Variance by Principal Component",
+        col = "skyblue", las = 2)
+```
+  
+```{r echo=TRUE}
+explained_variance_sum <- sum(explained_variance$Explained_Variance[explained_variance$Principal_Component %in% c("PC1", "PC2")])
+print(explained_variance_sum)
+```
+  
+  Les deux premières composantes de l’ACP expliquent 55.4% de la variance.
+  
+```{r echo=TRUE}
+explained_variance_sum <- sum(explained_variance$Explained_Variance[explained_variance$Principal_Component %in% c("PC1", "PC2", "PC3")])
+
+print(explained_variance_sum)
+```
+ Les trois premières composantes de l’ACP expliquent 61.5% de la variance.
+
+  5.3 Visualisation des deux premières composantes principales de l’ACP.
+  
+```{r echo=TRUE}
+plot(X_pca$PC1, X_pca$PC2, main = "Scatter Plot of PC1 vs PC2", 
+     xlab = "PC1", ylab = "PC2", col = "gray", pch = 16, cex = 1.5)
+```
+  
+  Les points se rassemblent naturellement en clusters, notamment deux clusters sont nettement visibles.
+Présentons chaque sous-type moléculaire en différente couleur pour comprendre à quoi correspondent
+ces clusters.
+
+```{r echo=TRUE}
+dict_colors <- c('luminal-A' = 'green', 'luminal-B' = 'blue', 'HER2-enriched' = 'orange', 'basal-like' = 'red')
+y_colors <- dict_colors[y]
+plot(X_pca$PC1, X_pca$PC2, main = " PC1 / PC2",
+     xlab = "PC1", ylab = "PC2", col = y_colors, pch = 16, cex = 1.5)
+
+```
+
+  5.4 Visualisation des trois premières composantes principales de l’ACP
+  
+```{r echo=TRUE}
+library(scatterplot3d)
+
+dict_colors <- c('luminal-A' = 'green', 'luminal-B' = 'blue', 'HER2-enriched' = 'yellow', 'basal-like' = 'red')
+y_colors <- dict_colors[y]
+
+# Create 3D scatter plot
+label_pc1 <- sprintf("%.1f%%", explained_variance$Explained_Variance[1])
+label_pc2 <- sprintf("%.1f%%", explained_variance$Explained_Variance[2])
+label_pc3 <- sprintf("%.1f%%", explained_variance$Explained_Variance[3])
+
+# Create 3D scatter plot
+scatterplot3d(X_pca$PC1, X_pca$PC2, X_pca$PC3, color = y_colors, pch = 16, main = "pc1 / pc2 /pc3",
+              xlab = paste("PC1 - ", label_pc1), 
+              ylab = paste("PC2 - ", label_pc2), 
+              zlab = paste("PC3 - ", label_pc3),
+              angle = 45)
+```
+  
+  6. Visualiser les données avec la méthode t-SNE.
+    
+    6.1 Projection 2D
+  
+```{r echo=TRUE}
+library(Rtsne)
+
+set.seed(0)  
+tsne_result <- Rtsne(X, perplexity = 30, theta = 0.5, dims = 2, verbose = TRUE)
+
+X_tsne <- as.data.frame(tsne_result$Y)
+colnames(X_tsne) <- paste0("DIM", 1:ncol(X_tsne))
+
+head(X_tsne)
+```
+  
+```{r echo=TRUE}
+dict_colors <- c('luminal-A' = 'green', 'luminal-B' = 'blue', 'HER2-enriched' = 'yellow', 'basal-like' = 'red')
+y_colors <- dict_colors[y]
+
+plot(X_tsne$DIM1, X_tsne$DIM2, main = "Scatter Plot of t-SNE Components", 
+     xlab = "DIM1", ylab = "DIM2", col = y_colors, pch = 16, cex = 1.5)
+```
+  
+```{r echo=TRUE}
+kl_divergence_values <- tsne_result$itercost
+final_kl_divergence <- kl_divergence_values[length(kl_divergence_values)]
+print(final_kl_divergence)
+```
+    
+    6.2 Projection 3D.
+    
+```{r echo=TRUE}
+tsne_result <- Rtsne(scaled_X, dims = 3, perplexity = 45, check_duplicates = FALSE)
+
+# Create a data frame from the result
+columns <- paste0('DIM', 1:3)
+X_tsne <- data.frame(tsne_result$Y, check.names = FALSE)
+colnames(X_tsne) <- columns
+rownames(X_tsne) <- rownames(scaled_X)  # Assuming X has row names
+
+# Show the first few rows
+head(X_tsne)
+```
+    
+```{r echo=TRUE, fig.width=9}
+
+scatterplot3d(X_tsne$DIM1, X_tsne$DIM2, X_tsne$DIM3, color = y_colors, pch = 16, main = "t-SNE 3D ",)
+
+```
+  
+7. Visualiser les données avec la méthode UMAP.
+  
+  7.1 Projection 2D.
+  
+```{r}
+
+library(umap)
+
+set.seed(0)
+
+umap_result <- umap(scaled_X, n_neighbors = 15, n_components = 2, random_state = 0, metric = "euclidean", min_dist = 0.1)
+
+umap_df <- data.frame(DIM1 = umap_result$layout[, 1], DIM2 = umap_result$layout[, 2])
+library(Rtsne)
+
+plot(umap_df$DIM2,umap_df$DIM1, col = y_colors, pch = 18, cex =1, main = "UMAP Plot", xlab = "DIM1", ylab = "DIM2")
+```
+  
+    7.2 Projection 3D.
+    
+```{r}
+umap_result <- umap(scaled_X, n_components = 3, random_state = 0, n_threads = -1)
+
+columns <- paste0('DIM', 1:3)
+X_umap <- data.frame(umap_result$layout, check.names = FALSE)
+colnames(X_umap) <- columns
+rownames(X_umap) <- rownames(scaled_X)  
+
+scatterplot3d(X_umap$DIM1, X_umap$DIM2, X_umap$DIM3, color = y_colors, pch = 16, main = "UMAP 3D Scatter Plot")
+
+```
+    
+    
+  
